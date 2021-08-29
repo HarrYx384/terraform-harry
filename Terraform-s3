@@ -1,7 +1,7 @@
 provider "aws" {
   region     = "us-east-1"
-  access_key = "AKIA33RSBTLJP2UIIEOV"
-  secret_key = "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"
+  access_key = "AKIA33RSOV"
+  secret_key = "pCPTd+ChDsjfQP5"
 }
 resource "aws_s3_bucket" "b" {
   bucket = "bukcet-for-test-vikash"
