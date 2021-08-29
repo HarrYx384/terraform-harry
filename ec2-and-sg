@@ -1,0 +1,56 @@
+provider "aws" {
+   region = "fdfsd"
+   access_key = "fhdgsjfsdj"
+   secret_key = "shdgfsdjfgsf"
+}
+
+variable "new-one" {
+   type = string
+   default = "vpc-0cd2ad71"
+}
+resource "aws_security_group" "firstsggroup" {
+  name        = "firstsggroup"
+  description = "Allow TLS inbound traffic"
+  vpc_id      = "${var.new-one}"
+
+  ingress  {
+      description      = "TLS from VPC"
+      from_port        = 22
+      to_port          = 22
+      protocol         = "tcp"
+      cidr_blocks      = ["0.0.0.0/0"]
+    }
+    ingress  {
+      description      = "TLS from VPC"
+      from_port        = 443
+      to_port          = 443
+      protocol         = "tcp"
+      cidr_blocks      = ["0.0.0.0/0"]
+    }
+
+  egress  {
+      from_port        = 0
+      to_port          = 0
+      protocol         = "-1"
+      cidr_blocks      = ["0.0.0.0/0"]
+    }
+
+
+  tags = {
+    Name = "Harry"
+  }
+}
+# variable for amiid
+
+variable "amiid" {
+    default = "ami-0c2b8ca1dad447f8a"
+}
+
+resource "aws_instance" "web-in" {
+  ami           = "${var.amiid}" # us-west-2
+  instance_type = "t2.micro"
+  vpc_security_group_ids = ["${aws_security_group.firstsggroup.id}"]
+   tags =  {
+     Name = "vikash"
+}
+}
