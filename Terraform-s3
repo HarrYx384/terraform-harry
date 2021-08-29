@@ -1,0 +1,27 @@
+provider "aws" {
+  region     = "us-east-1"
+  access_key = "AKIA33RSBTLJP2UIIEOV"
+  secret_key = "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"
+}
+resource "aws_s3_bucket" "b" {
+  bucket = "bukcet-for-test-vikash"
+  acl    = "private"
+  versioning {
+    enabled = true
+  }
+  tags = {
+    Name        = "My bucket"
+    Environment = "Dev"
+  }
+}
+
+resource "aws_s3_bucket_object" "object" {
+  bucket = "${aws_s3_bucket.b.id}"
+  key    = "vikash.txt"
+  source = "../vikash.txt"
+
+  #  The filemd5() function is available in Terraform 0.11.12 and later
+  #  For Terraform 0.11.11 and earlier, use the md5() function and the file() function:
+  #  etag = "${md5(file("path/to/file"))}"
+  etag = filemd5("../vikash.txt")
+}
