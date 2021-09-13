@@ -1,0 +1,23 @@
+provider "aws" {
+  region     = "us-east-1"
+  access_key = "AE"
+  secret_key = "4ZZ0qE"
+}
+ terraform {
+  backend "s3" {
+    bucket         = "setup-personal"
+    key            = "setup-personal"
+    access_key     = "AKI"
+    secret_key     = "4ZZqE"
+    region         = "us-east-1"
+    dynamodb_table = "terraform_state"
+  }
+}
+resource "aws_instance" "web" {
+  ami           = "ami-0947d2ba12ee1ff75"
+  instance_type = "t2.micro"
+
+  tags = {
+    Name = "HelloWorld"
+  }
+}
