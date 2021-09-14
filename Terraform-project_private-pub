@@ -1,0 +1,192 @@
+provider "aws" {
+  region     = "us-west-2"
+  access_key = "my-access-key"
+  secret_key = "my-secret-key"
+}
+
+# This Section to configure the backend
+
+terraform {
+  backend "s3" {
+    bucket         = "setup-personal"
+    key            = "setup-personal"
+    access_key     = "AKI"
+    secret_key     = "4ZZqE"
+    region         = "us-east-1"
+    dynamodb_table = "terraform_state"
+  }
+}
+
+# this section is to create vpc 
+
+resource "aws_vpc" "first" {
+  cidr_block       = "10.0.0.0/16"
+  instance_tenancy = "default"
+
+  tags = {
+    Name = "my-first"
+  }
+}
+
+# This sec is to create Public subnet
+
+resource "aws_subnet" "public" {
+  vpc_id     = aws_vpc.first.id
+  cidr_block = "10.0.1.0/24"
+
+  tags = {
+    Name = "public"
+  }
+}
+
+# This section is to create private subnet
+
+resource "aws_subnet" "private" {
+  vpc_id     = aws_vpc.first.id
+  cidr_block = "10.0.2.0/24"
+
+  tags = {
+    Name = "private"
+  }
+}
+
+# This section is to create security group
+
+resource "aws_security_group" "my-sec" {
+  name        = "allow_tls"
+  description = "Allow TLS inbound traffic"
+  vpc_id      = aws_vpc.first.id
+
+  ingress {
+      description      = "TLS from VPC"
+      from_port        = 22
+      to_port          = 22
+      protocol         = "tcp"
+      cidr_blocks      = ["0.0.0.0/0"]
+    }
+
+  egress {
+      from_port        = 0
+      to_port          = 0
+      protocol         = "-1"
+      cidr_blocks      = ["0.0.0.0/0"]
+    }
+
+  tags = {
+    Name = "my-sec"
+  }
+}
+
+# This section will internet gateway (igw)
+
+resource "aws_internet_gateway" "gw" {
+  vpc_id = aws_vpc.first.id
+
+  tags = {
+    Name = "igw"
+  }
+}
+
+# This section will create route table
+
+resource "aws_route_table" "public-rt" {
+  vpc_id = aws_vpc.first.id
+
+  route {
+      cidr_block = "0.0.0.0/0"
+      gateway_id = aws_internet_gateway.gw.id
+
+  tags = {
+    Name = "new"
+  }
+  }
+}
+
+# This section will associate public subnet to route table
+
+
+resource "aws_route_table_association" "a" {
+  subnet_id      = aws_subnet.public.id
+  route_table_id = aws_route_table.public-rt.id
+}
+
+# This section will create a key-pair
+
+resource "aws_key_pair" "my-key" {
+  key_name   = "my-key"
+  public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDQN79Gb30eVV/7ig7E2B1xec93SeuIlA2ws0/qnG255NfdTqqGqk7QnnDHdp9D/g7kZVxTzL5XtzPszLJxL0tWicojUaE0X8ModE805JS1+uhfbkoJPlNYzDWf0VG+Cf62XeFU9+Mk9FeI2iDrUgll72qty3NKKmBe+HLuwJSXLRIXLXhdkGawr14pzmHqsCtzfaLMyO7lz2DERKebFomVMtH/YH6uGowHNoaWMTBBW8MXwHslWFTn+2kCFYTGQdbYujo2PDJEYAwRyk3T4UbuogXionzEe2N3eCIRVbObug70fIBmiYDaYyjvFs2/nTaBcHNZXCd9CknWwd6JBpxb root@terraform"
+}
+
+# This section will create a ec2 instance
+
+resource "aws_instance" "web" {
+  ami           = "ami-0947d2ba12ee1ff75"
+  instance_type = "t2.micro"
+  associate_public_ip_address = true
+  subnet_id = aws_subnet.public.id
+  vpc_security_group_ids =  [aws_security_group.my-sec.id]
+  key_name = aws_key_pair.my-key.id
+
+  tags = {
+    Name = "vikash"
+  }
+}
+
+# private subnet section 
+# this section will create a ec2 private subnet
+
+resource "aws_instance" "database" {
+  ami           = "ami-0947d2ba12ee1ff75"
+  instance_type = "t2.micro"
+  subnet_id = aws_subnet.private.id
+  vpc_security_group_ids =  [aws_security_group.my-sec.id]
+  key_name = aws_key_pair.my-key.id
+
+  tags = {
+    Name = "database"
+  }
+}
+
+# this section will a elastic ip
+
+resource "aws_eip" "natgateway" {
+  vpc      = true
+}
+
+# This section will create a nat_gateway and map eip to nat gateway
+
+
+resource "aws_nat_gateway" "rtyp" {
+  allocation_id = aws_eip.natgateway.id
+  subnet_id     = aws_subnet.public.id
+
+  tags = {
+    Name = "gw NAT"
+  }
+
+  # To ensure proper ordering, it is recommended to add an explicit dependency
+  # on the Internet Gateway for the VPC.
+  depends_on = [aws_internet_gateway.gw]
+}
+
+# This section will create a routetable for private section
+
+resource "aws_route_table" "privatefty" {
+  vpc_id = aws_vpc.first.id
+
+  route {
+      cidr_block = "0.0.0.0/0"
+      gateway_id = aws_nat_gateway.rtyp.id
+    }
+
+  tags = {
+    Name = "private-route"
+  }
+}
+
+# This section will associate route table to private subnet
+
+resource "aws_route_table_association" "b" {
+  subnet_id      = aws_subnet.private.id
+  route_table_id = aws_route_table.privatefty.id
+}
